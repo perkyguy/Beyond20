@@ -69,12 +69,12 @@ function injectCSS(css) {
 function sendCustomEvent(name, data=[]) {
     if (getBrowser() === "Firefox")
         data = cloneInto(data, window);
-    const event = new CustomEvent("Beyond20_" + name, { "detail": data });
+    const event = new CustomEvent("GreenRoom" + name, { "detail": data });
     document.dispatchEvent(event);
 }
 
 function addCustomEventListener(name, callback) {
-    const event = ["Beyond20_" + name, (evt) => {
+    const event = ["GreenRoom" + name, (evt) => {
         const detail = evt.detail || [];
         callback(...detail)
     }, false];

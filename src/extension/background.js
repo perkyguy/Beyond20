@@ -173,6 +173,7 @@ const forwardedActions = [
     "hp-update",
     "conditions-update",
     "update-combat",
+    "scene-import",
 ];
 
 function onMessage(request, sender, sendResponse) {

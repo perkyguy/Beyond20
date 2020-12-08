@@ -3,7 +3,7 @@ from settings import getDefaultSettings, getStoredSettings;
 from elementmaker import E;
 */
 
-console.log("Beyond20: Foundry VTT module loaded.");
+console.log("Green Room: Foundry VTT module loaded.");
 
 var settings = getDefaultSettings();
 
@@ -21,6 +21,9 @@ function handleMessage(request, sender, sendResponse) {
     if (request.action == "settings") {
         if (request.type == "general")
             updateSettings(request.settings);
+    } else if (request.action == "scene-import") {
+        console.log('SceneImport', request);
+        sendCustomEvent("SceneImport", [request]);
     } else if (request.action == "open-options") {
         alertFullSettings();
     } else if (request.action == "hp-update") {

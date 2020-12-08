@@ -69,12 +69,12 @@ function injectCSS(css) {
 function sendCustomEvent(name, data=[]) {
     if (getBrowser() === "Firefox")
         data = cloneInto(data, window);
-    const event = new CustomEvent("Beyond20_" + name, { "detail": data });
+    const event = new CustomEvent("GreenRoom" + name, { "detail": data });
     document.dispatchEvent(event);
 }
 
 function addCustomEventListener(name, callback) {
-    const event = ["Beyond20_" + name, (evt) => {
+    const event = ["GreenRoom" + name, (evt) => {
         const detail = evt.detail || [];
         callback(...detail)
     }, false];
@@ -2743,61 +2743,6 @@ class FVTTDisplayer {
         } else {
             data['type'] = MESSAGE_TYPES.OOC;
         }
-        if (play_sound)
-            data["sound"] = CONFIG.sounds.dice;
-        // If there are attack roll(s) or damage_roll(s)
-        // Build a dicePool, attach it to a Roll, then attach it to the ChatMessage
-        // Then set ChatMessage type to "ROLL"
-        if (attack_rolls.length > 0 || damage_rolls.length > 0) {
-            const rolls = [...attack_rolls, ...damage_rolls.map(d => d[1])];
-            const fvttRolls = rolls.map(r => {
-                if (r instanceof FVTTRoll) { return r._roll; }
-                const dice = [];
-                const result = []
-                const parts = [];
-                r.parts.forEach(p => {
-                    if (parts.length > 0) parts.push("+");
-                    if (p.formula) {
-                        const idx = dice.length;
-                        p.class = "Die";
-                        dice.push(p)
-                        result.push(p.total)
-                        parts.push(`_d${idx}`);
-                    } else {
-                        parts.push(p)
-                        result.push(p)
-                    }
-                })
-                r.class = "Roll";
-                r.dice = dice;
-                r.parts = parts;
-                r.result = result.join(" + ")
-                return Roll.fromData(r)
-            });
-            if (isNewerVersion(game.data.version, "0.7")) {
-                // Foundry 0.7.x API
-                // This will accept backware compatible fvttRolls format
-                const pool = new DicePool({rolls: fvttRolls}).evaluate();
-                const pool_roll = Roll.create(pool.formula);
-                pool_roll.terms = [pool];
-                pool_roll.results = [pool.total];
-                pool_roll._total = pool.total;
-                pool_roll._rolled = true;
-                data.roll = pool_roll;
-            } else {
-                // Foundry 0.6.x API
-                const pool = new DicePool(fvttRolls).roll();
-                const formulas = pool.dice.map(d => d.formula);
-                const pool_roll = new Roll(`{${formulas.join(",")}}`);
-                pool_roll._result = [pool.total];
-                pool_roll._total = pool.total;
-                pool_roll._dice = pool.dice;
-                pool_roll.parts = [pool];
-                pool_roll._rolled = true;
-                data.roll = pool_roll;
-            }
-            data.type = MESSAGE_TYPES.ROLL;
-        }
         return ChatMessage.create(data);
     }
 
@@ -2828,74 +2773,6 @@ class FVTTDisplayer {
     }
 }
 
-class FVTTRoll extends Beyond20BaseRoll {
-    constructor(formula, data = {}) {
-        formula = formula.replace(/ro(=|<|<=|>|>=)([0-9]+)/g, "r$1$2");
-        formula = formula.replace(/(^|\s)+([^\s]+)min([0-9]+)([^\s]*)/g, "$1{$2$4, $3}kh1");
-        super(formula, data);
-        this._roll = new Roll(formula, data)
-    }
-
-    get total() {
-        return this._roll.total;
-    }
-
-    get formula() {
-        return this._roll.formula;
-    }
-
-    get dice() {
-        // 0.7.x Dice Roll API is different
-        if (isNewerVersion(game.data.version, "0.7")) {
-            return this._roll.dice.map(d => {
-                return {
-                    faces: d.faces,
-                    formula: d.formula,
-                    total: d.total,
-                    rolls: d.results.map(r => ({discarded: r.discarded, roll: r.result}))
-                }
-            });
-        } else {
-            return this._roll.dice;
-        }
-    }
-
-    get parts() {
-        // 0.7.x Dice Roll API is different
-        if (isNewerVersion(game.data.version, "0.7")) {
-            return this._roll.terms;
-        } else {
-            return this._roll.parts;
-        }
-    }
-
-    async getTooltip() {
-        const tooltip = await this._roll.getTooltip();
-        // Automatically expand the roll details in the tooltip
-        return tooltip.replace(/<div class="dice-tooltip">/g, `<div class="dice-tooltip" style="display: block;">`)
-    }
-
-    async roll() {
-        this._roll.roll();
-        return this;
-    }
-
-    async reroll() {
-        this._roll = this._roll.reroll();
-        return this;
-    }
-}
-
-class FVTTRoller {
-    roll(formula, data) {
-        return new FVTTRoll(formula, data);
-    }
-    async resolveRolls(name, rolls) {
-        return Promise.all(rolls.map(roll => roll.roll()))
-    }
-}
-
-
 class FVTTPrompter {
     prompt(title, html, ok_label = "OK", cancel_label = "Cancel") {
         return new Promise((resolve, reject) => {
@@ -2919,7 +2796,7 @@ class FVTTPrompter {
     }
 }
 
-var roll_renderer = new Beyond20RollRenderer(new FVTTRoller(), new FVTTPrompter(), new FVTTDisplayer());
+var roll_renderer = new Beyond20RollRenderer(null, null, new FVTTDisplayer());
 roll_renderer.setBaseURL(extension_url);
 roll_renderer.setSettings(settings);
 
@@ -3082,7 +2959,11 @@ function updateConditions(request, name, conditions, exhaustion) {
     }
 }
 
-
+function sceneImport(req) {
+    console.log('SceneImport');
+    const displayer = new FVTTDisplayer();
+    displayer._postChatMessage(`I'm going to create ${req.chapterName} from ${req.sourceName}`, "GM", undefined, undefined, [], []);
+}
 
 function setSettings(new_settings, url) {
     settings = new_settings;
@@ -3109,14 +2990,105 @@ function setTitle() {
     }
 }
 
+function makeIdFromName(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+}
+
+function getGRFlag(entity, flag) {
+    if (!entity || !entity.data.flags || !entity.data.flags.greenRoom) {
+        return undefined;
+    }
+
+    return entity.data.flags.greenRoom[flag]
+}
+function setGRFlag(entity, flag, value, { isData = false }) {
+    if (!entity) {
+        return;
+    }
+    const dataLevel = isData ? entity : entity.data;
+    if (!dataLevel.flags) {
+        dataLevel.flags = {};
+    }
+
+    if (!dataLevel.flags.greenRoom) {
+        dataLevel.flags.greenRoom = {};
+    }
+
+    return dataLevel.flags.greenRoom[flag] = value;
+}
+
+function getJournalId(entity) {
+    return getGRFlag(entity, "id") || "";
+}
+
+function makeId(currentName, parentFolder) {
+    return [getJournalId(parentFolder), makeIdFromName(currentName)].filter(Boolean).join('-')
+}
+
+async function createDir(name, parentFolder) {
+    // TODO: Make ids contain information from all the way up their hierarchy
+    const id = makeId(name, parentFolder);
+    const existingDir = game.folders.find(f => getJournalId(f) === id);
+    if (Boolean(existingDir)) {
+        return existingDir;
+    }
+    
+    const data = {
+        name: name,
+        type: "JournalEntry",
+        parent: parentFolder ? parentFolder.id : null,
+    };
+    setGRFlag(data, "id", id, { isData: true });
+    const folder = await Folder.create(data);
+    if (!folder) {
+        throw new Error(`Couldn't create the folder for some reason :(`);
+    }
+    return folder;
+};
+
+async function createEntries({ sourceName, chapterName, maps }) {
+    const sourceDir = await createDir(sourceName);
+    const chapterDir = await createDir(chapterName, sourceDir);
+    
+    for (let { mapTitle, sections } of maps) {
+        if (!sections) { continue; }
+
+        const sectionName = mapTitle;
+        const sectionDir = await createDir(sectionName, chapterDir);
+        for (let {mapLetter, area, subArea, areaName, content} of sections) {
+            const areaValue = Boolean(area) ? [mapLetter, area, subArea].filter(Boolean).slice(-2).concat(': ').join('') : '';
+            const entryId = makeId(areaValue, sectionDir);
+            const current = game.journal.find(entry => getJournalId(entry) === entryId);
+            
+            const entryData = {
+                _id: entryId,
+                name: `${areaValue}${areaName}`,
+                folder: sectionDir.id,
+            }
+            setGRFlag(entryData, "id", entryId, { isData: true });
+            const entryUpdate = { content: content.join('<br />') };
+
+            await (Boolean(current) ? current.update(entryUpdate) : JournalEntry.create({ ...entryData, ...entryUpdate}));
+        }
+    }
+
+    await game.journal.render();
+}
+
+async function sceneImport(req) {
+    await createEntries(req);
+
+}
+
 console.log("Beyond20: Foundry VTT Page Script loaded");
 const registered_events = [];
-registered_events.push(addCustomEventListener("Roll", handleRoll));
-registered_events.push(addCustomEventListener("RenderedRoll", handleRenderedRoll));
+// registered_events.push(addCustomEventListener("Roll", handleRoll));
+// registered_events.push(addCustomEventListener("RenderedRoll", handleRenderedRoll));
 registered_events.push(addCustomEventListener("NewSettings", setSettings));
-registered_events.push(addCustomEventListener("UpdateHP", updateHP));
-registered_events.push(addCustomEventListener("UpdateConditions", updateConditions));
+// registered_events.push(addCustomEventListener("UpdateHP", updateHP));
+// registered_events.push(addCustomEventListener("UpdateConditions", updateConditions));
 registered_events.push(addCustomEventListener("disconnect", disconnectAllEvents));
+registered_events.push(addCustomEventListener("SceneImport", sceneImport));
 //const alertify = ui.notifications;
 setTitle();
 

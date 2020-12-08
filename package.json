@@ -1,7 +1,7 @@
 {
-    "name": "beyond20",
+    "name": "green-room",
     "version": "2.2.1",
-    "description": "Beyond20: D&D Beyond & Roll20/Foundry VTT Integration",
+    "description": "Green Room: D&D Beyond Scene Importer for Foundry VTT",
     "directories": {
         "doc": "docs"
     },
@@ -14,20 +14,19 @@
         "package": "run-s build package:*",
         "package:chrome": "web-ext build --source-dir=./build/chrome/ --artifacts-dir=./build/chrome/web-ext-artifacts/",
         "package:firefox": "web-ext build --source-dir=./build/firefox/ --artifacts-dir=./build/firefox/web-ext-artifacts/",
-        "start:chrome": "web-ext run -t chromium --source-dir ./build/chrome/",
-        "start:firefox": "web-ext run --source-dir ./build/firefox/"
+        "start:chrome": "yarn build:chrome && web-ext run -t chromium --source-dir ./build/chrome/",
+        "start:firefox": "yarn build:firefox && web-ext run --source-dir ./build/firefox/"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/kakaroto/Beyond20.git"
+        "url": "git+https://github.com/perkyguy/Beyond20.git"
     },
     "keywords": [],
     "author": "",
     "license": "GNU",
     "bugs": {
-        "url": "https://github.com/kakaroto/Beyond20/issues"
+        "url": "https://github.com/perkyguy/Beyond20/issues"
     },
-    "homepage": "https://beyond20.here-for-more.info",
     "devDependencies": {
         "gulp": "^4.0.2",
         "gulp-concat": "^2.6.1",

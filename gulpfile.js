@@ -85,6 +85,11 @@ const SRC_FILES = {
         "src/fvtt/page-script.js",
         "src/common/sandbox-footer.js"
     ],
+    dndbeyond_source: [
+        ...DNDBEYOND_PAGE_DEPS,
+        "src/dndbeyond/base/source.js",
+        "src/dndbeyond/content-scripts/source.js",
+    ],
     dndbeyond_spell: [
         ...DNDBEYOND_PAGE_DEPS,
         "src/dndbeyond/base/spell.js",

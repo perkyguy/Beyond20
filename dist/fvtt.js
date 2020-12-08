@@ -68,12 +68,12 @@ function injectCSS(css) {
 function sendCustomEvent(name, data=[]) {
     if (getBrowser() === "Firefox")
         data = cloneInto(data, window);
-    const event = new CustomEvent("Beyond20_" + name, { "detail": data });
+    const event = new CustomEvent("GreenRoom" + name, { "detail": data });
     document.dispatchEvent(event);
 }
 
 function addCustomEventListener(name, callback) {
-    const event = ["Beyond20_" + name, (evt) => {
+    const event = ["GreenRoom" + name, (evt) => {
         const detail = evt.detail || [];
         callback(...detail)
     }, false];
@@ -1357,7 +1357,7 @@ from settings import getDefaultSettings, getStoredSettings;
 from elementmaker import E;
 */
 
-console.log("Beyond20: Foundry VTT module loaded.");
+console.log("Green Room: Foundry VTT module loaded.");
 
 var settings = getDefaultSettings();
 
@@ -1375,6 +1375,9 @@ function handleMessage(request, sender, sendResponse) {
     if (request.action == "settings") {
         if (request.type == "general")
             updateSettings(request.settings);
+    } else if (request.action == "scene-import") {
+        console.log('SceneImport', request);
+        sendCustomEvent("SceneImport", [request]);
     } else if (request.action == "open-options") {
         alertFullSettings();
     } else if (request.action == "hp-update") {
