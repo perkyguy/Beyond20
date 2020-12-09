@@ -1429,78 +1429,110 @@ function setTitle() {
     }
 }
 
-function getGRFlag(entity, flag) {
-    if (!entity || !entity.data.flags || !entity.data.flags.greenRoom) {
-        return undefined;
+class Utilities {
+    static getGRFlag(entity, flag) {
+        if (!entity || !entity.data.flags || !entity.data.flags.greenRoom) {
+            return undefined;
+        }
+    
+        return entity.data.flags.greenRoom[flag]
     }
-
-    return entity.data.flags.greenRoom[flag]
-}
-function setGRFlag(entity, flag, value, { isData = false }) {
-    if (!entity) {
-        return;
-    }
-    const dataLevel = isData ? entity : entity.data;
-    if (!dataLevel.flags) {
-        dataLevel.flags = {};
-    }
-
-    if (!dataLevel.flags.greenRoom) {
-        dataLevel.flags.greenRoom = {};
-    }
-
-    return dataLevel.flags.greenRoom[flag] = value;
-}
-
-function getJournalId(entity) {
-    return getGRFlag(entity, "id") || "";
-}
-
-function makeId(name, parentFolder) {
-    const currentName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    return [getJournalId(parentFolder), currentName].filter(Boolean).join('-')
-}
-
-async function createDir(name, parentFolder) {
-    const id = makeId(name, parentFolder);
-    const existingDir = game.folders.find(f => getJournalId(f) === id);
-    if (Boolean(existingDir)) {
-        return existingDir;
+    static setGRFlag(entity, flag, value, { isData = false }) {
+        if (!entity) {
+            return;
+        }
+        const dataLevel = isData ? entity : entity.data;
+        if (!dataLevel.flags) {
+            dataLevel.flags = {};
+        }
+    
+        if (!dataLevel.flags.greenRoom) {
+            dataLevel.flags.greenRoom = {};
+        }
+    
+        return dataLevel.flags.greenRoom[flag] = value;
     }
     
-    const data = {
-        name: name,
-        type: "JournalEntry",
-        parent: parentFolder ? parentFolder.id : null,
-    };
-    setGRFlag(data, "id", id, { isData: true });
-    const folder = await Folder.create(data);
-    if (!folder) {
-        throw new Error(`Couldn't create the folder for some reason :(`);
+    static getGRIdFlag(entity) {
+        return Utilities.getGRFlag(entity, "id") || "";
     }
-    return folder;
-};
+    
+    static makeId(name, parentFolder) {
+        const currentName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        return [Utilities.getGRIdFlag(parentFolder), currentName].filter(Boolean).join('-')
+    }
+    
+    static async createDir(name, parentFolder, type) {
+        const id = (!parentFolder ? `${type.toLowerCase()}-` : '') + Utilities.makeId(name, parentFolder);
+        const existingDir = game.folders.find(f => Utilities.getGRIdFlag(f) === id);
+        if (Boolean(existingDir)) {
+            return existingDir;
+        }
+        
+        const data = {
+            name,
+            type,
+            parent: parentFolder ? parentFolder.id : null,
+        };
+        Utilities.setGRFlag(data, "id", id, { isData: true });
+        const folder = await Folder.create(data);
+        if (!folder) {
+            throw new Error(`Couldn't create the folder for some reason :(`);
+        }
+        return folder;
+    };
+}
 
-async function createEntries({ sourceName, chapterName, maps }) {
-    const sourceDir = await createDir(sourceName);
-    const chapterDir = await createDir(chapterName, sourceDir);
+async function createJournalEntries({ sourceName, chapterName, maps }) {
+    const sourceDir = await Utilities.createDir(sourceName, null, "JournalEntry");
+    const chapterDir = await Utilities.createDir(chapterName, sourceDir, "JournalEntry");
     
     for (let { mapTitle, sections } of maps) {
         if (!sections) { continue; }
 
         const sectionName = mapTitle;
-        const sectionDir = await createDir(sectionName, chapterDir);
+        const sectionDir = await Utilities.createDir(sectionName, chapterDir, "JournalEntry");
         for (let {mapLetter, area, subArea, areaName, content} of sections) {
             const areaValue = Boolean(area) ? [mapLetter, area, subArea].filter(Boolean).slice(-2).concat(': ').join('') : '';
-            const entryId = makeId(areaValue, sectionDir);
-            const current = game.journal.find(entry => getJournalId(entry) === entryId);
+            const entryId = Utilities.makeId(areaValue, sectionDir);
+            const current = game.journal.find(entry => Utilities.getGRIdFlag(entry) === entryId);
             
             const entryData = {
                 _id: entryId,
                 name: `${areaValue}${areaName}`,
                 folder: sectionDir.id,
             }
-            setGRFlag(entryData, "id", entryId, { isData: true });
+            Utilities.setGRFlag(entryData, "id", entryId, { isData: true });
+            const entryUpdate = { content: content.join('<br />') };
+
+            await (Boolean(current) ? current.update(entryUpdate) : JournalEntry.create({ ...entryData, ...entryUpdate}));
+        }
+    }
+
+    await game.journal.render();
+}
+
+async function createScenes({ sourceName, chapterName, maps}) {
+
+    const sourceDir = await Utilities.createDir(sourceName, null, "Scene");
+    const chapterDir = await Utilities.createDir(chapterName, sourceDir, "Scene");
+    
+    for (let { mapTitle, sections } of maps) {
+        if (!sections) { continue; }
+
+        const sectionName = mapTitle;
+        const sectionDir = await Utilities.createDir(sectionName, chapterDir, "Scene");
+        for (let {mapLetter, area, subArea, areaName, content} of sections) {
+            const areaValue = Boolean(area) ? [mapLetter, area, subArea].filter(Boolean).slice(-2).concat(': ').join('') : '';
+            const scene = Utilities.makeId(areaValue, sectionDir);
+            const current = game.journal.find(entry => Utilities.getGRIdFlag(entry) === entryId);
+            
+            const entryData = {
+                _id: entryId,
+                name: `${areaValue}${areaName}`,
+                folder: sectionDir.id,
+            }
+            Utilities.setGRFlag(entryData, "id", entryId, { isData: true });
             const entryUpdate = { content: content.join('<br />') };
 
             await (Boolean(current) ? current.update(entryUpdate) : JournalEntry.create({ ...entryData, ...entryUpdate}));
@@ -1511,7 +1543,7 @@ async function createEntries({ sourceName, chapterName, maps }) {
 }
 
 async function sceneImport(req) {
-    await createEntries(req);
+    await createJournalEntries(req);
 
 }
 
