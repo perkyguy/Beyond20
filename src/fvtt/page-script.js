@@ -111,8 +111,62 @@ async function createJournalEntries({ sourceName, chapterName, maps }) {
     await game.journal.render();
 }
 
+async function tryCreateDataDirectory(source, target) {
+    try {
+        await FilePicker.createDirectory(source, target)
+    } catch (e) {
+        console.log(`Ignoring the directory create error`, e)
+    }
+}
+
+async function uploadFromUrl({ url, filename }) {
+    const source = "data";
+    const target = "/uploads/green-room";
+    const outputName = filename || url.split('/').pop();
+    await tryCreateDataDirectory(source, "/uploads");
+    await tryCreateDataDirectory(source, target)
+
+    const existingFile = (await FilePicker.browse(source, target)).files.find(f => f.includes(outputName));
+    if (existingFile) {
+        return existingFile;
+    }
+
+    const proxyUrl = url.toLowerCase().indexOf("http") === 0 ? "https://proxy.iungimus.de/get/" + url : url;
+    const response = await fetch(proxyUrl);
+    const data = await response.blob();
+    const file = new File([data], outputName);
+    
+    await FilePicker.upload(source, target, file);
+    return (await FilePicker.browse(source, target)).files.find(f => f.includes(outputName));
+}
+
+async function createScenes({ sourceName, chapterName, maps}) {
+    const sourceDir = await Utilities.createDir(sourceName, null, "Scene");
+    const chapterDir = await Utilities.createDir(chapterName, sourceDir, "Scene");
+    
+    for (let { mapTitle, imageLink } of maps) {
+        const uploadLink = await uploadFromUrl({ url: imageLink, })
+        
+        const sceneId = Utilities.makeId(mapTitle, chapterDir);
+        const current = game.scenes.find(scene => Utilities.getGRIdFlag(scene) === sceneId);
+        if (current) { continue; }
+
+        const sceneData = {
+            _id: sceneId,
+            name: mapTitle,
+            folder: chapterDir.id,
+            img: uploadLink
+        }
+        Utilities.setGRFlag(sceneData, "id", sceneId, { isData: true });
+        await Scene.create(sceneData);
+    }
+
+    await game.scenes.render();
+}
+
 async function sceneImport(req) {
     await createJournalEntries(req);
+    await createScenes(req);
 
 }
 

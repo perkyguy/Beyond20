@@ -1458,7 +1458,7 @@ class Utilities {
     }
     
     static makeId(name, parentFolder) {
-        const currentName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const currentName = name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
         return [Utilities.getGRIdFlag(parentFolder), currentName].filter(Boolean).join('-')
     }
     
@@ -1512,38 +1512,62 @@ async function createJournalEntries({ sourceName, chapterName, maps }) {
     await game.journal.render();
 }
 
-async function createScenes({ sourceName, chapterName, maps}) {
+async function tryCreateDataDirectory(source, target) {
+    try {
+        await FilePicker.createDirectory(source, target)
+    } catch (e) {
+        console.log(`Ignoring the directory create error`, e)
+    }
+}
 
+async function uploadFromUrl({ url, filename }) {
+    const source = "data";
+    const target = "/uploads/green-room";
+    const outputName = filename || url.split('/').pop();
+    await tryCreateDataDirectory(source, "/uploads");
+    await tryCreateDataDirectory(source, target)
+
+    const existingFile = (await FilePicker.browse(source, target)).files.find(f => f.includes(outputName));
+    if (existingFile) {
+        return existingFile;
+    }
+
+    const proxyUrl = url.toLowerCase().indexOf("http") === 0 ? "https://proxy.iungimus.de/get/" + url : url;
+    const response = await fetch(proxyUrl);
+    const data = await response.blob();
+    const file = new File([data], outputName);
+    
+    await FilePicker.upload(source, target, file);
+    return (await FilePicker.browse(source, target)).files.find(f => f.includes(outputName));
+}
+
+async function createScenes({ sourceName, chapterName, maps}) {
     const sourceDir = await Utilities.createDir(sourceName, null, "Scene");
     const chapterDir = await Utilities.createDir(chapterName, sourceDir, "Scene");
     
-    for (let { mapTitle, sections } of maps) {
-        if (!sections) { continue; }
+    for (let { mapTitle, imageLink } of maps) {
+        const uploadLink = await uploadFromUrl({ url: imageLink, })
+        
+        const sceneId = Utilities.makeId(mapTitle, chapterDir);
+        const current = game.scenes.find(scene => Utilities.getGRIdFlag(scene) === sceneId);
+        if (current) { continue; }
 
-        const sectionName = mapTitle;
-        const sectionDir = await Utilities.createDir(sectionName, chapterDir, "Scene");
-        for (let {mapLetter, area, subArea, areaName, content} of sections) {
-            const areaValue = Boolean(area) ? [mapLetter, area, subArea].filter(Boolean).slice(-2).concat(': ').join('') : '';
-            const scene = Utilities.makeId(areaValue, sectionDir);
-            const current = game.journal.find(entry => Utilities.getGRIdFlag(entry) === entryId);
-            
-            const entryData = {
-                _id: entryId,
-                name: `${areaValue}${areaName}`,
-                folder: sectionDir.id,
-            }
-            Utilities.setGRFlag(entryData, "id", entryId, { isData: true });
-            const entryUpdate = { content: content.join('<br />') };
-
-            await (Boolean(current) ? current.update(entryUpdate) : JournalEntry.create({ ...entryData, ...entryUpdate}));
+        const sceneData = {
+            _id: sceneId,
+            name: mapTitle,
+            folder: chapterDir.id,
+            img: uploadLink
         }
+        Utilities.setGRFlag(sceneData, "id", sceneId, { isData: true });
+        await Scene.create(sceneData);
     }
 
-    await game.journal.render();
+    await game.scenes.render();
 }
 
 async function sceneImport(req) {
     await createJournalEntries(req);
+    await createScenes(req);
 
 }
 
