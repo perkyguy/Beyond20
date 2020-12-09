@@ -6,19 +6,12 @@ const rename = require("gulp-rename");
 const ROLL_RENDERER_DEPS = [
     "src/common/utils.js",
     "src/common/settings.js",
-    "src/common/constants.js",
-    "src/discord/discord.js",
-    "src/common/dice.js",
-    "src/common/roll_renderer.js"
+    "src/common/constants.js"
 ];
 
 const DNDBEYOND_PAGE_DEPS = [
     ...ROLL_RENDERER_DEPS,
-    "src/dndbeyond/base/digital-dice.js",
-    "src/dndbeyond/base/dice.js",
-    "src/dndbeyond/base/base.js",
-    "src/dndbeyond/base/hotkeys.js",
-    "src/dndbeyond/base/utils.js",
+    "src/dndbeyond/utils.js",
 ];
 
 const SRC_FILES = {
@@ -46,31 +39,6 @@ const SRC_FILES = {
         "src/common/settings.js",
         "src/extension/popup.js"
     ],
-    astral: [
-        "src/common/utils.js",
-        "src/common/settings.js",
-        "src/astral/common.js",
-        "src/astral/content-script.js"
-    ],
-    astral_script: [
-        ...ROLL_RENDERER_DEPS,
-        "src/common/utils.js",
-        "src/astral/data-utils.js",
-        "src/astral/renderer.js",
-        "src/astral/common.js",
-        "src/astral/page-script.js"
-    ],
-    roll20: [
-        ...ROLL_RENDERER_DEPS,
-        "src/roll20/renderer.js",
-        "src/roll20/content-script.js"
-    ],
-    roll20_script: [
-        "src/common/sandbox-header.js",
-        "src/common/utils.js",
-        "src/roll20/page-script.js",
-        "src/common/sandbox-footer.js"
-    ],
     fvtt_test: [
         "src/fvtt/check-tab.js"
     ],
@@ -87,43 +55,9 @@ const SRC_FILES = {
     ],
     dndbeyond_source: [
         ...DNDBEYOND_PAGE_DEPS,
-        "src/dndbeyond/base/source.js",
-        "src/dndbeyond/content-scripts/source.js",
+        "src/dndbeyond/sourceBase.js",
+        "src/dndbeyond/source.js",
     ],
-    dndbeyond_spell: [
-        ...DNDBEYOND_PAGE_DEPS,
-        "src/dndbeyond/base/spell.js",
-        "src/dndbeyond/content-scripts/spell.js",
-    ],
-    dndbeyond_item: [
-        ...DNDBEYOND_PAGE_DEPS,
-        "src/dndbeyond/content-scripts/item.js",
-    ],
-    dndbeyond_monster: [
-        ...DNDBEYOND_PAGE_DEPS,
-        "src/dndbeyond/base/spell.js",
-        "src/dndbeyond/base/monster.js",
-        "src/dndbeyond/content-scripts/monster.js",
-    ],
-    dndbeyond_encounter: [
-        ...DNDBEYOND_PAGE_DEPS,
-        "src/dndbeyond/base/spell.js",
-        "src/dndbeyond/base/monster.js",
-        "src/dndbeyond/content-scripts/encounter.js",
-    ],
-    dndbeyond_vehicle: [
-        ...DNDBEYOND_PAGE_DEPS,
-        "src/dndbeyond/base/spell.js",
-        "src/dndbeyond/base/monster.js",
-        "src/dndbeyond/content-scripts/vehicle.js",
-    ],
-    dndbeyond_character: [
-        ...DNDBEYOND_PAGE_DEPS,
-        "src/dndbeyond/base/spell.js",
-        "src/dndbeyond/base/monster.js",
-        "src/dndbeyond/base/character.js",
-        "src/dndbeyond/content-scripts/character.js",
-    ]
 }
 const CSS_FILES = ['src/extension/beyond20.css']
 

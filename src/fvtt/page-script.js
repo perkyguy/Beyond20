@@ -1,273 +1,13 @@
 /*
 from utils import addCustomEventListener;
 from settings import WhisperType;
-from roll_renderer import Beyond20RollRenderer, Beyond20BaseRoll;
 */
 var settings = null;
 var extension_url = "/modules/beyond20/";
 
-class FVTTDisplayer {
-    postHTML(request, title, html, character, whisper, play_sound, source, attributes, description, attack_rolls, roll_info, damage_rolls, total_damages, open) {
-        Hooks.once('renderChatMessage', (chat_message, html, data) => {
-            const icon = extension_url + "images/icons/badges/custom20.png";
-            html.find(".ct-beyond20-custom-icon").attr('src', icon);
-            html.find(".ct-beyond20-custom-roll").on('click', (event) => {
-                const roll = $(event.currentTarget).find(".beyond20-roll-formula").text();
-                roll_renderer.rollDice(request, title, roll);
-            });
-            html.find(".beyond20-button-roll-damages").on('click', (event) => {
-                request.rollAttack = false;
-                request.rollDamage = true;
-                request.rollCritical = attack_rolls.some(r => !r.discarded && r["critical-success"])
-                roll_renderer.handleRollRequest(request)
-            });
-        });
-        return this._postChatMessage(html, character, whisper, play_sound, attack_rolls, damage_rolls);
-    }
-
-    _postChatMessage(message, character, whisper, play_sound = false, attack_rolls, damage_rolls) {
-        const MESSAGE_TYPES = CONST.CHAT_MESSAGE_TYPES || CHAT_MESSAGE_TYPES;
-        const data = {
-            "content": message,
-            "user": game.user._id,
-            "speaker": this._getSpeakerByName(character)
-        }
-        const rollMode = this._whisperToRollMode(whisper);
-        if (["gmroll", "blindroll"].includes(rollMode)) {
-            data["whisper"] = (ChatMessage.getWhisperRecipients || ChatMessage.getWhisperIDs).call(ChatMessage, "GM");
-            data['type'] = MESSAGE_TYPES.WHISPER;
-            if (rollMode == "blindroll")
-                data["blind"] = true;
-        } else {
-            data['type'] = MESSAGE_TYPES.OOC;
-        }
-        return ChatMessage.create(data);
-    }
-
-    _getSpeakerByName(name) {
-        if (name === null)
-            return ChatMessage.getSpeaker();
-        const actor = game.actors.entities.find((actor) => actor.data.name.toLowerCase() == name.toLowerCase());
-        const speaker = ChatMessage.getSpeaker({ actor });
-        speaker.alias = name;
-        return speaker;
-    }
-
-    _whisperToRollMode(whisper) {
-        try {
-            return {
-                [WhisperType.NO]: "roll",
-                [WhisperType.HIDE_NAMES]: "roll",
-                [WhisperType.YES]: "gmroll",
-                [WhisperType.QUERY]: game.settings.get("core", "rollMode")
-            }[whisper];
-        } catch (err) {
-            return game.settings.get("core", "rollMode");
-        }
-    }
-
-    displayError(message) {
-        ui.notifications.error(message);
-    }
-}
-
-class FVTTPrompter {
-    prompt(title, html, ok_label = "OK", cancel_label = "Cancel") {
-        return new Promise((resolve, reject) => {
-            const icon = `<img style="border: 0px;" src="${extension_url}images/icons/icon20.png"></img>`;
-            let ok_pressed = false;
-            new Dialog({
-                "title": title,
-                "content": html,
-                "buttons": {
-                    "ok": {
-                        "label": ok_label,
-                        "icon": icon,
-                        "callback": () => ok_pressed = true
-                    },
-                    "cancel": { "label": cancel_label }
-                },
-                "default": "ok",
-                "close": (html) => resolve(ok_pressed ? html : null)
-            }).render(true);
-        });
-    }
-}
-
-var roll_renderer = new Beyond20RollRenderer(null, null, new FVTTDisplayer());
-roll_renderer.setBaseURL(extension_url);
-roll_renderer.setSettings(settings);
-
-function rollInitiative(request, custom_roll_dice = "") {
-    roll_renderer.handleRollRequest(request).then((roll) => {
-        if (settings["initiative-tracker"])
-            addInitiativeToCombat(roll);
-    });
-}
-
-function popAvatar(request) {
-    new ImagePopout(request.character.avatar, {
-        "shareable": false,
-        "title": (request.whisper !== WhisperType.NO) ? "???" : request.character.name,
-        "entity": { "type": "User", "id": game.user.id }
-    }).render(true).shareImage(true);
-    roll_renderer.displayAvatarToDiscord(request);
-}
-
-async function addInitiativeToCombat(roll) {
-    if (canvas.tokens.controlled.length > 0) {
-        if (game.combat) {
-            if (game.combat.scene.id != canvas.scene.id) {
-                ui.notifications.warn("Cannot add initiative to tracker: Encounter was not created for this scene");
-            } else {
-                for (let token of canvas.tokens.controlled) {
-                    combatant = game.combat.getCombatantByToken(token.id);
-                    if (combatant) {
-                        idField = combatant._id ? "_id" : "id";
-                        await game.combat.updateCombatant({ [idField]: combatant[idField], "initiative": roll.total });
-                    } else {
-                        await game.combat.createCombatant({ "tokenId": token.id, "hidden": token.data.hidden, "initiative": roll.total });
-                    }
-                }
-            }
-        } else {
-            ui.notifications.warn("Cannot add initiative to tracker: no Encounter has been created yet");
-        }
-    } else {
-        ui.notifications.warn("Cannot add initiative to tracker: no token is currently selected");
-    }
-}
-
-
-function handleRoll(request) {
-    console.log("Received roll request ", request);
-
-    // The hook would return "false" to stop propagation, meaning that it was handled
-    const handledNatively = Hooks.call("beyond20Request", request.action, request);
-    if (handledNatively === false) return;
-
-    if (request.type == "initiative")
-        rollInitiative(request);
-    else if (request.type == "avatar")
-        popAvatar(request);
-    else
-        roll_renderer.handleRollRequest(request);
-}
-function handleRenderedRoll(request) {
-    console.log("Received rendered roll request ", request);
-    // The hook would return "false" to stop propagation, meaning that it was handled
-    const handledNatively = Hooks.call("beyond20Request", request.action, request);
-    if (handledNatively === false) return;
-
-    roll_renderer._displayer.postHTML(request.request, request.title,
-        request.html, request.character, request.whisper, 
-        request.play_sound, request.source, request.attributes, 
-        request.description, request.attack_rolls, request.roll_info, 
-        request.damage_rolls, request.total_damages, request.open);
-    if (request.request.type === "initiative" && settings["initiative-tracker"]) {
-        const initiative = request.attack_rolls.find((roll) => !roll.discarded);
-        if (initiative)
-            addInitiativeToCombat(initiative);
-    }
-}
-
-function updateHP(name, current, total, temp) {
-    console.log(`Updating HP for ${name} : (${current} + ${temp})/${total}`);
-    name = name.toLowerCase().trim();
-
-    const tokens = canvas.tokens.placeables.filter((t) => t.owner && t.name.toLowerCase().trim() == name);
-
-    const dnd5e_data = { "data.attributes.hp.value": current, "data.attributes.hp.temp": temp, "data.attributes.hp.max": total }
-    const sws_data = { "data.health.value": current + temp, "data.health.max": total }
-    if (tokens.length == 0) {
-        const actor = game.actors.entities.find((a) => a.owner && a.name.toLowerCase() == name);
-        if (actor && getProperty(actor.data, "data.attributes.hp") !== undefined) {
-            actor.update(dnd5e_data);
-        } else if (actor && getProperty(actor.data, "data.health") !== undefined) {
-            actor.update(sws_data);
-        }
-    }
-
-    for (let token of tokens) {
-        if (token.actor && getProperty(token.actor.data, "data.attributes.hp") !== undefined) {
-            token.actor.update(dnd5e_data);
-        } else if (token.actor && getProperty(token.actor.data, "data.health") !== undefined) {
-            token.actor.update(sws_data);
-        }
-    }
-}
-
-
-function updateConditions(request, name, conditions, exhaustion) {
-    console.log("Updating Conditions for " + name + " : ", conditions, " - exhaustion level : ", exhaustion);
-    let display_conditions = conditions;
-    if (exhaustion > 0)
-        display_conditions = conditions.concat(["Exhausted (Level " + exhaustion + ")"]);
-    const message = name + (display_conditions.length == 0 ? " has no active condition" : " is : " + display_conditions.join(", "));
-    const MESSAGE_TYPES = CONST.CHAT_MESSAGE_TYPES || CHAT_MESSAGE_TYPES;
-    ChatMessage.create({
-        "content": message,
-        "user": game.user._id,
-        "speaker": roll_renderer._displayer._getSpeakerByName(name),
-        "type": MESSAGE_TYPES.EMOTE
-    });
-
-    // Check for the beyond20 module, if (it's there, we can use its status effects.;
-    const module = game.modules.get("beyond20");
-
-    if (module && isNewerVersion(module.data.version, "0.6")) {
-        // Update status effects;
-        name = name.toLowerCase();
-
-        const tokens = canvas.tokens.placeables.filter((t) => t.data.name.toLowerCase() == name);
-
-        for (let token of tokens) {
-            const effects = token.data.effects;
-            let new_effects = [];
-
-            let new_conditions = conditions.map((c) => c.toLowerCase() + ".svg");
-            let defeated = false;
-            if (exhaustion > 0) {
-                if (exhaustion == 6) {
-                    defeated = true;
-                } else {
-                    new_conditions.push("exhaustion" + exhaustion + ".svg");
-                }
-            }
-
-            // Remove status effects that have disappeared;
-            for (let effect of effects) {
-                if (!effect.startsWith("modules/beyond20/conditions/")) {
-                    new_effects.push(effect);
-                } else {
-                    const effect_name = effect.slice(34);
-                    if (new_conditions.includes(effect_name)) {
-                        new_effects.push(effect);
-                        new_conditions = new_conditions.filter((c) => c != effect_name);
-                    }
-                }
-            }
-            console.log("From ", effects, "to ", new_effects, " still need to add ", new_conditions);
-            new_effects = new_effects.concat(new_conditions.map((c) => "modules/beyond20/conditions/" + c));
-            data = { "effects": new_effects }
-            if (defeated)
-                data["overlayEffect"] = "icons/svg/skull.svg";
-            token.update(data);
-        }
-    }
-}
-
-function sceneImport(req) {
-    console.log('SceneImport');
-    const displayer = new FVTTDisplayer();
-    displayer._postChatMessage(`I'm going to create ${req.chapterName} from ${req.sourceName}`, "GM", undefined, undefined, [], []);
-}
-
 function setSettings(new_settings, url) {
     settings = new_settings;
     extension_url = url;
-    roll_renderer.setBaseURL(extension_url);
-    roll_renderer.setSettings(settings);
 }
 
 function disconnectAllEvents() {
@@ -286,10 +26,6 @@ function setTitle() {
         // Wait for the world and UI to be loaded;
         Hooks.once("renderChatLog", setTitle);
     }
-}
-
-function makeIdFromName(name) {
-    return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
 }
 
 function getGRFlag(entity, flag) {
@@ -315,25 +51,25 @@ function setGRFlag(entity, flag, value, { isData = false }) {
     return dataLevel.flags.greenRoom[flag] = value;
 }
 
-function getJournalId(entity) {
+function getGRIdFlag(entity) {
     return getGRFlag(entity, "id") || "";
 }
 
-function makeId(currentName, parentFolder) {
-    return [getJournalId(parentFolder), makeIdFromName(currentName)].filter(Boolean).join('-')
+function makeId(name, parentFolder) {
+    const currentName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    return [getGRIdFlag(parentFolder), currentName].filter(Boolean).join('-')
 }
 
-async function createDir(name, parentFolder) {
-    // TODO: Make ids contain information from all the way up their hierarchy
+async function createDir(name, parentFolder, type) {
     const id = makeId(name, parentFolder);
-    const existingDir = game.folders.find(f => getJournalId(f) === id);
+    const existingDir = game.folders.find(f => getGRIdFlag(f) === id);
     if (Boolean(existingDir)) {
         return existingDir;
     }
     
     const data = {
-        name: name,
-        type: "JournalEntry",
+        name,
+        type,
         parent: parentFolder ? parentFolder.id : null,
     };
     setGRFlag(data, "id", id, { isData: true });
@@ -344,19 +80,19 @@ async function createDir(name, parentFolder) {
     return folder;
 };
 
-async function createEntries({ sourceName, chapterName, maps }) {
-    const sourceDir = await createDir(sourceName);
-    const chapterDir = await createDir(chapterName, sourceDir);
+async function createJournalEntries({ sourceName, chapterName, maps }) {
+    const sourceDir = await createDir(sourceName, null, "JournalEntry");
+    const chapterDir = await createDir(chapterName, sourceDir, "JournalEntry");
     
     for (let { mapTitle, sections } of maps) {
         if (!sections) { continue; }
 
         const sectionName = mapTitle;
-        const sectionDir = await createDir(sectionName, chapterDir);
+        const sectionDir = await createDir(sectionName, chapterDir, "JournalEntry");
         for (let {mapLetter, area, subArea, areaName, content} of sections) {
             const areaValue = Boolean(area) ? [mapLetter, area, subArea].filter(Boolean).slice(-2).concat(': ').join('') : '';
             const entryId = makeId(areaValue, sectionDir);
-            const current = game.journal.find(entry => getJournalId(entry) === entryId);
+            const current = game.journal.find(entry => getGRIdFlag(entry) === entryId);
             
             const entryData = {
                 _id: entryId,
@@ -374,17 +110,13 @@ async function createEntries({ sourceName, chapterName, maps }) {
 }
 
 async function sceneImport(req) {
-    await createEntries(req);
+    await createJournalEntries(req);
 
 }
 
 console.log("Beyond20: Foundry VTT Page Script loaded");
 const registered_events = [];
-// registered_events.push(addCustomEventListener("Roll", handleRoll));
-// registered_events.push(addCustomEventListener("RenderedRoll", handleRenderedRoll));
 registered_events.push(addCustomEventListener("NewSettings", setSettings));
-// registered_events.push(addCustomEventListener("UpdateHP", updateHP));
-// registered_events.push(addCustomEventListener("UpdateConditions", updateConditions));
 registered_events.push(addCustomEventListener("disconnect", disconnectAllEvents));
 registered_events.push(addCustomEventListener("SceneImport", sceneImport));
 //const alertify = ui.notifications;

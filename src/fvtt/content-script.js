@@ -26,16 +26,6 @@ function handleMessage(request, sender, sendResponse) {
         sendCustomEvent("SceneImport", [request]);
     } else if (request.action == "open-options") {
         alertFullSettings();
-    } else if (request.action == "hp-update") {
-        if (settings["update-hp"])
-            sendCustomEvent("UpdateHP", [request.character.name, request.character.hp, request.character["max-hp"], request.character["temp-hp"]]);
-    } else if (request.action == "conditions-update") {
-        if (settings["display-conditions"])
-            sendCustomEvent("UpdateConditions", [request, request.character.name, request.character.conditions, request.character.exhaustion]);
-    } else if (request.action == "roll") {
-        sendCustomEvent("Roll", [request]);
-    } else if (request.action == "rendered-roll") {
-        sendCustomEvent("RenderedRoll", [request]);
     }
 }
 

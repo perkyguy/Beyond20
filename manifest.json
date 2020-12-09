@@ -36,9 +36,7 @@
         "libs/alertify.min.js",
         "libs/jquery-3.4.1.min.js",
 		"libs/lz-string.min.js",
-		"dist/roll20_script.js",
 		"dist/fvtt_script.js",
-		"dist/astral_script.js",
 		"popup.html",
 		"options.html"
 	],
@@ -68,126 +66,6 @@
 		},
 		{
 			"matches": [
-				"*://*.dndbeyond.com/*characters/*"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css",
-				"dist/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"dist/dndbeyond_character.js"
-			],
-			"all_frames": true
-		},
-		{
-			"matches": [
-				"*://*.dndbeyond.com/monsters/*"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css",
-				"dist/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"dist/dndbeyond_monster.js"
-			],
-			"all_frames": true
-		},
-		{
-			"matches": [
-				"*://*.dndbeyond.com/vehicles/*"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css",
-				"dist/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"dist/dndbeyond_vehicle.js"
-			],
-			"all_frames": true
-		},
-		{
-			"matches": [
-				"*://*.dndbeyond.com/spells/*"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css",
-				"dist/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"dist/dndbeyond_spell.js"
-			],
-			"all_frames": true
-		},
-		{
-			"matches": [
-				"*://*.dndbeyond.com/my-encounters",
-				"*://*.dndbeyond.com/encounters/*",
-				"*://*.dndbeyond.com/combat-tracker/*"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css",
-				"dist/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"dist/dndbeyond_encounter.js"
-			],
-			"all_frames": true
-		},
-		{
-			"matches": [
-				"*://*.dndbeyond.com/equipment/*",
-				"*://*.dndbeyond.com/magic-items/*"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css",
-				"dist/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"dist/dndbeyond_item.js"
-			],
-			"all_frames": true
-		},
-		{
-			"matches": [
-				"*://app.roll20.net/editor/"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"dist/roll20.js"
-			]
-		},
-		{
-			"matches": [
 				"*://*.forge-vtt.com/game"
 			],
 			"css": [
@@ -199,22 +77,6 @@
 				"libs/alertify.min.js",
 				"libs/jquery-3.4.1.min.js",
 				"dist/fvtt_test.js"
-			]
-		},
-		{
-			"matches": [
-				"*://*.astraltabletop.com/play/*"
-			],
-			"css": [
-				"libs/css/alertify.css",
-				"libs/css/alertify-themes/default.css",
-				"libs/css/alertify-themes/beyond20.css"
-			],
-			"js": [
-				"libs/alertify.min.js",
-				"libs/jquery-3.4.1.min.js",
-				"libs/lz-string.min.js",
-				"dist/astral.js"
 			]
 		}
 	]
