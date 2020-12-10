@@ -28,12 +28,15 @@ function setTitle() {
 }
 
 class Utilities {
-    static getGRFlag(entity, flag) {
-        if (!entity || !entity.data.flags || !entity.data.flags.greenRoom) {
+    static getGRFlag(entity, flag, isData = false) {
+        if (!entity) { return undefined; }
+
+        const dataLevel = isData ? entity : entity.data;
+        if (!dataLevel.flags || !dataLevel.flags.greenRoom) {
             return undefined;
         }
     
-        return entity.data.flags.greenRoom[flag]
+        return dataLevel.flags.greenRoom[flag]
     }
     static setGRFlag(entity, flag, value, { isData = false }) {
         if (!entity) {
@@ -161,8 +164,7 @@ async function createScenes({ sourceName, chapterName, maps}) {
         const sceneId = Utilities.makeId(mapTitle, chapterDir);
         const current = game.scenes.find(scene => Utilities.getGRIdFlag(scene) === sceneId);
         
-        const customData = await getSceneSettings(sceneId);
-        if (current) { await current.update(customData.scene); continue; }
+        if (current) { await updateSceneDetails(current); continue; }
 
         const sceneData = {
             _id: sceneId,
@@ -178,22 +180,83 @@ async function createScenes({ sourceName, chapterName, maps}) {
     await game.scenes.render();
 }
 
-async function updateSceneDetails(scene) {
-    const sceneId = Utilities.getGRFlag(scene, "id");
-    const details = await getSceneSettings(sceneId);
-    await scene.update(details.scene);
+async function rebuildLights(scene, newData) {
+    const IS_GR_PLACEABLE = "isGRPlaceable";
+    console.log(newData);
+    if (!newData.lights) {
+        newData.lights = [];
+    }
+    
+    for (let light of newData.lights) {
+        Utilities.setGRFlag(light, IS_GR_PLACEABLE, true, { isData: true });
+    }
+
+    for (let light of scene.data.lights) {
+        if (Utilities.getGRFlag(light, IS_GR_PLACEABLE, true)) {
+            const canvasWall = canvas.lighting.get(light._id);
+            if (canvasWall) { 
+                await canvasWall.delete()
+            }
+        }
+    }
+    
+    // // Add in all the user-added walls to our new one
+    newData.lights = newData.lights.concat(scene.data.lights.filter(l => !Utilities.getGRFlag(l, IS_GR_PLACEABLE, true)))
+
+    return newData;
 }
 
-async function getSceneSettings(sceneId) {
+async function rebuildWalls(scene, newData) {
+    const IS_GR_PLACEABLE = "isGRPlaceable";
+    if (!newData.walls) {
+        newData.walls = [];
+    }
+
+    // Make sure that we have flagged all of our new walls
+    for (let wall of newData.walls) {
+        Utilities.setGRFlag(wall, IS_GR_PLACEABLE, true, { isData: true });
+    }
+
+    // Delete all of our old walls :()
+    for (let wall of scene.data.walls) {
+        if (Utilities.getGRFlag(wall, IS_GR_PLACEABLE, true)) {
+            const canvasWall = canvas.walls.get(wall._id);
+            if (canvasWall) { 
+                await canvasWall.delete()
+            }
+        }
+    }
+    
+    // // Add in all the user-added walls to our new one
+    newData.walls = newData.walls.concat(scene.data.walls.filter(w => !Utilities.getGRFlag(w, IS_GR_PLACEABLE, true)))
+
+    return newData;
+}
+
+async function updateSceneDetails(scene) {
+    const details = await getSceneSettings(scene);
+    if (!details) {
+        return;
+    }
+    await rebuildWalls(scene, details);
+    await rebuildLights(scene, details);
+    
+    await scene.update(details);
+    await scene.render();
+}
+
+async function getSceneSettings(scene) {
+    const sceneId = Utilities.getGRIdFlag(scene);
     console.log(sceneId);
     try {
         const response = await fetch(`${sceneId}.json`);
+        if (!response) return false;
         const data = await response.json();
         return data;
     } catch (e) {
         console.info(`No scene file exists for ${sceneId}`);
     }
-    return {};
+    return false;
 }
 
 async function sceneImport(req) {
